@@ -2,7 +2,7 @@
 
  #
  # Script For Building Android arm64 Kernel
- # 
+ #
 
  # Specify Kernel Directory
 KERNEL_DIR="$(pwd)"
@@ -19,12 +19,31 @@ DEVICE=lavender
 
 # Specify Version
 if [ "$1" = "--qti" ]; then
-VERSION=Qti-Old
+  if [ "$2" = "--12" ]; then
+  sed -i 's/# CONFIG_NETFILTER_XT_MATCH_OWNER is not set/CONFIG_NETFILTER_XT_MATCH_OWNER=y/' arch/arm64/configs/lavender-perf_defconfig
+  sed -i 's/CONFIG_NETFILTER_XT_MATCH_QTAGUID=y/# CONFIG_NETFILTER_XT_MATCH_QTAGUID is not set/' arch/arm64/configs/lavender-perf_defconfig
+  VERSION=Qti-Old-12
+  else
+  VERSION=Qti-Old
+  fi
 elif [ "$1" = "--old" ]; then
-VERSION=Old
+  if [ "$2" = "--12" ]; then
+  sed -i 's/# CONFIG_NETFILTER_XT_MATCH_OWNER is not set/CONFIG_NETFILTER_XT_MATCH_OWNER=y/' arch/arm64/configs/lavender-perf_defconfig
+  sed -i 's/CONFIG_NETFILTER_XT_MATCH_QTAGUID=y/# CONFIG_NETFILTER_XT_MATCH_QTAGUID is not set/' arch/arm64/configs/lavender-perf_defconfig
+  VERSION=Old-12
+  else
+  VERSION=Old
+  fi
 elif [ "$1" = "--new" ]; then
-VERSION=New
-echo "CONFIG_XIAOMI_NEWCAM=y" >> arch/arm64/configs/lavender-perf_defconfig
+  if [ "$2" = "--12" ]; then
+  sed -i 's/# CONFIG_NETFILTER_XT_MATCH_OWNER is not set/CONFIG_NETFILTER_XT_MATCH_OWNER=y/' arch/arm64/configs/lavender-perf_defconfig
+  sed -i 's/CONFIG_NETFILTER_XT_MATCH_QTAGUID=y/# CONFIG_NETFILTER_XT_MATCH_QTAGUID is not set/' arch/arm64/configs/lavender-perf_defconfig
+  VERSION=New-12
+  echo "CONFIG_XIAOMI_NEWCAM=y" >> arch/arm64/configs/lavender-perf_defconfig
+  else
+  VERSION=New
+  echo "CONFIG_XIAOMI_NEWCAM=y" >> arch/arm64/configs/lavender-perf_defconfig
+  fi
 fi
 
 # Kernel Defconfig
@@ -111,6 +130,7 @@ function exports() {
 ##----------------------------------------------------------------##
 
 if [ "$1" = "--old" ]; then
+if [ "$2" = "--12" ]; then
 function post_msg() {
     curl -s -X POST "https://api.telegram.org/bot$token/sendMessage" \
         -d chat_id="$chat_id" \
@@ -118,7 +138,8 @@ function post_msg() {
         -d "parse_mode=html" \
         -d text="$1"
 }
-fi 
+fi
+fi
 
 ##----------------------------------------------------------##
 
