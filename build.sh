@@ -19,31 +19,12 @@ DEVICE=lavender
 
 # Specify Version
 if [ "$1" = "--qti" ]; then
-  if [ "$2" = "--12" ]; then
-  sed -i 's/# CONFIG_NETFILTER_XT_MATCH_OWNER is not set/CONFIG_NETFILTER_XT_MATCH_OWNER=y/' arch/arm64/configs/lavender-perf_defconfig
-  sed -i 's/CONFIG_NETFILTER_XT_MATCH_QTAGUID=y/# CONFIG_NETFILTER_XT_MATCH_QTAGUID is not set/' arch/arm64/configs/lavender-perf_defconfig
-  VERSION=Qti-Old-12
-  else
   VERSION=Qti-Old
-  fi
 elif [ "$1" = "--old" ]; then
-  if [ "$2" = "--12" ]; then
-  sed -i 's/# CONFIG_NETFILTER_XT_MATCH_OWNER is not set/CONFIG_NETFILTER_XT_MATCH_OWNER=y/' arch/arm64/configs/lavender-perf_defconfig
-  sed -i 's/CONFIG_NETFILTER_XT_MATCH_QTAGUID=y/# CONFIG_NETFILTER_XT_MATCH_QTAGUID is not set/' arch/arm64/configs/lavender-perf_defconfig
-  VERSION=Old-12
-  else
   VERSION=Old
-  fi
 elif [ "$1" = "--new" ]; then
-  if [ "$2" = "--12" ]; then
-  sed -i 's/# CONFIG_NETFILTER_XT_MATCH_OWNER is not set/CONFIG_NETFILTER_XT_MATCH_OWNER=y/' arch/arm64/configs/lavender-perf_defconfig
-  sed -i 's/CONFIG_NETFILTER_XT_MATCH_QTAGUID=y/# CONFIG_NETFILTER_XT_MATCH_QTAGUID is not set/' arch/arm64/configs/lavender-perf_defconfig
-  VERSION=New-12
-  echo "CONFIG_XIAOMI_NEWCAM=y" >> arch/arm64/configs/lavender-perf_defconfig
-  else
   VERSION=New
   echo "CONFIG_XIAOMI_NEWCAM=y" >> arch/arm64/configs/lavender-perf_defconfig
-  fi
 fi
 
 # Kernel Defconfig
@@ -130,7 +111,6 @@ function exports() {
 ##----------------------------------------------------------------##
 
 if [ "$1" = "--old" ]; then
-if [ "$2" = "--12" ]; then
 function post_msg() {
     curl -s -X POST "https://api.telegram.org/bot$token/sendMessage" \
         -d chat_id="$chat_id" \
@@ -138,7 +118,6 @@ function post_msg() {
         -d "parse_mode=html" \
         -d text="$1"
 }
-fi
 fi
 
 ##----------------------------------------------------------##
@@ -154,10 +133,17 @@ function push() {
 ##----------------------------------------------------------##
 
 function compile() {
-	post_msg "<b>$KBUILD_BUILD_VERSION CI Build Triggered</b>%0A<b>Kernel Version : </b><code>$KERVER</code>%0A<b>Date : </b><code>$(TZ=Asia/Kolkata date)</code>%0A<b>Device : </b><code>$MODEL [$DEVICE]</code>%0A<b>Pipeline Host : </b><code>$KBUILD_BUILD_HOST</code>%0A<b>Host Core Count : </b><code>$PROCS</code>%0A<b>Compiler Used : </b><code>$KBUILD_COMPILER_STRING</code>%0A<b>Branch : </b><code>$CI_BRANCH</code>%0A<b>Top Commit : </b><a href='$DRONE_COMMIT_LINK'>$COMMIT_HEAD</a>"
-	                        make O=out ARCH=arm64 ${DEFCONFIG}
-	                        if [ -d ${KERNEL_DIR}/clang ]; then
-	                        make -kj$(nproc --all) O=out \
+    if [ "$1" = "A" ]; then
+      export LOCALVERSION="-${VERSION}-12"
+      post_msg "<b>$KBUILD_BUILD_VERSION CI Build Triggered</b>%0A<b>Kernel Version : </b><code>$KERVER</code>%0A<b>Date : </b><code>$(TZ=Asia/Kolkata date)</code>%0A<b>Device : </b><code>$MODEL [$DEVICE]</code>%0A<b>Pipeline Host : </b><code>$KBUILD_BUILD_HOST</code>%0A<b>Host Core Count : </b><code>$PROCS</code>%0A<b>Compiler Used : </b><code>$KBUILD_COMPILER_STRING</code>%0A<b>Branch : </b><code>$CI_BRANCH</code>%0A<b>Top Commit : </b><a href='$DRONE_COMMIT_LINK'>$COMMIT_HEAD</a>"
+    elif [ "$1" = "B" ]; then
+      export LOCALVERSION="-${VERSION}"
+      # nuke bpf patches
+      git apply DROP_BPF_BACKPORT.p
+    fi
+				make O=out ARCH=arm64 ${DEFCONFIG}
+				if [ -d ${KERNEL_DIR}/clang ]; then
+				make -kj$(nproc --all) O=out \
 				ARCH=arm64 \
 				CC=clang \
 				CROSS_COMPILE=aarch64-linux-gnu- \
@@ -171,7 +157,7 @@ function compile() {
 				READELF=llvm-readelf \
 				OBJSIZE=llvm-size \
 				V=$VERBOSE 2>&1 | tee error.log
-                                elif [ -d ${KERNEL_DIR}/gcc64 ]; then
+				elif [ -d ${KERNEL_DIR}/gcc64 ]; then
 				make -kj$(nproc --all) O=out \
 				ARCH=arm64 \
 				CROSS_COMPILE_ARM32=arm-eabi- \
@@ -207,7 +193,11 @@ function compile() {
         exit 1
     fi
     # Copy Files To AnyKernel3 Zip
-    cp $IMAGE AnyKernel3
+    if [ $1 = "A" ]; then
+      cp $IMAGE AnyKernel3/image_a
+    elif [ $1 = "B" ]; then
+      cp $IMAGE AnyKernel3/image_b
+    fi
 }
 ##----------------------------------------------------------##
 
@@ -222,7 +212,8 @@ function zipping() {
 
 clone
 exports
-compile
+compile A  # for a12 build
+compile B  # for a11/10/9 build
 END=$(date +"%s")
 DIFF=$(($END - $START))
 zipping
