@@ -620,7 +620,7 @@ resizefs_out:
 		ret = ext4_trim_fs(sb, &range, flags);
 		if (ret < 0)
 			return ret;
-
+		
 		if (copy_to_user((struct fstrim_range __user *)arg, &range,
 		    sizeof(range)))
 			return -EFAULT;
